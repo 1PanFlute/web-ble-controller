@@ -39,7 +39,9 @@
         .subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
         .status-panel { padding: 12px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.05); margin-bottom: 24px; font-weight: 500; text-align: center; }
         .status-disconnected { color: var(--danger); }
+        .status-connecting { color: var(--primary); }
         .status-connected { color: var(--success); }
+        
         .btn {
             background-color: var(--primary);
             color: white;
@@ -49,17 +51,30 @@
             font-weight: 600;
             border-radius: 8px;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
+            transition: background 0.1s, transform 0.1s;
             width: 100%;
             margin-bottom: 12px;
+            -webkit-tap-highlight-color: transparent;
         }
-        .btn:hover { background-color: var(--primary-hover); }
-        .btn:active { transform: scale(0.98); }
         .btn-disconnect { background-color: transparent; border: 2px solid #333; color: var(--text-muted); }
-        .btn-disconnect:hover { border-color: var(--danger); color: var(--danger); background-color: rgba(255, 59, 48, 0.05); }
+        
+        .btn:active { 
+            background-color: var(--primary-hover) !important;
+            transform: scale(0.95);
+        }
+        .btn-disconnect:active {
+            border-color: var(--danger) !important;
+            color: var(--danger) !important;
+            background-color: rgba(255, 59, 48, 0.15) !important;
+            transform: scale(0.95);
+        }
+
+        @media (hover: hover) {
+            .btn:hover { background-color: var(--primary-hover); }
+            .btn-disconnect:hover { border-color: var(--danger); color: var(--danger); background-color: rgba(255, 59, 48, 0.05); }
+        }
         
         .section-title { font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-top: 24px; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #2d2d35; padding-bottom: 4px; }
-        
         .flex-nav { display: flex; gap: 12px; margin-bottom: 12px; }
         .flex-nav .btn { margin-bottom: 0; }
         
@@ -70,51 +85,83 @@
         input[type="range"] { flex: 1; margin-left: 15px; accent-color: var(--primary); }
         input[type="number"] { width: 70px; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #222; color: white; text-align: center; font-size: 14px; }
         .btn-inline { width: auto; padding: 6px 14px; font-size: 14px; margin-bottom: 0; margin-left: 8px; }
+
+        #controls-wrapper { display: none; }
+
+        /* Struttura e animazione del Loader */
+        .loader-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 0;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 12px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>Quadro Laurea</h1>
-        <div class="subtitle">Pannello Web BLE Completo</div>
+        <div class="subtitle">Pannello Web BLE</div>
 
         <div id="status-text" class="status-panel status-disconnected">Stato: Disconnesso</div>
 
+        <!-- Tasto di Connessione -->
         <button id="btn-connect" class="btn">Connetti al Quadro</button>
-        <button id="btn-disconnect" class="btn btn-disconnect" style="display: none;">Disconnetti</button>
 
-        <!-- Navigazione Manuale Sequenziale -->
-        <div class="section-title">Navigazione Manuale</div>
-        <div class="flex-nav">
-            <button class="btn btn-badge" id="nav-back" onclick="sendBleCmd('B')" disabled>◀ BACK</button>
-            <button class="btn btn-badge" id="nav-forward" onclick="sendBleCmd('F')" disabled>FORWARD ▶</button>
+        <!-- Loader di Caricamento (Nascosto di base) -->
+        <div id="loader-wrapper" class="loader-container">
+            <div class="spinner"></div>
+            <div style="font-size: 14px; color: var(--text-muted);">Ricerca del Quadro in corso...</div>
         </div>
 
-        <!-- Selezione Rapida tramite Input Numerico -->
-        <div class="section-title">Salto Diretto (Jump)</div>
-        <div class="control-group">
-            <div class="control-row" style="justify-content: flex-start;">
-                <label for="jumpInput" style="margin-right: auto;">Numero Immagine (Indice):</label>
-                <input type="number" id="jumpInput" min="0" value="0" disabled>
-                <button id="btn-jump" class="btn btn-inline" onclick="executeJump()" disabled>Vai</button>
+        <!-- CONTENITORE CONTROLLI -->
+        <div id="controls-wrapper">
+            <button id="btn-disconnect" class="btn btn-disconnect">Disconnetti</button>
+
+            <div class="section-title">Navigazione Manuale</div>
+            <div class="flex-nav">
+                <button class="btn" id="nav-back" onclick="sendBleCmd('B')">◀ BACK</button>
+                <button class="btn" id="nav-forward" onclick="sendBleCmd('F')">FORWARD ▶</button>
             </div>
-        </div>
 
-        <!-- Regolazioni Hardware del Quadro -->
-        <div class="section-title">Impostazioni Hardware</div>
-        <div class="control-group">
-            <div class="control-row">
-                <label>Luminosità: <span id="brightVal">80</span>%</label>
-                <input type="range" id="brightnessRange" min="0" max="100" value="80" disabled oninput="updateBrightness(this.value)">
+            <div class="section-title">Salto Diretto (Jump)</div>
+            <div class="control-group">
+                <div class="control-row" style="justify-content: flex-start;">
+                    <label for="jumpInput" style="margin-right: auto;">Numero Immagine:</label>
+                    <input type="number" id="jumpInput" min="0" value="0">
+                    <button id="btn-jump" class="btn btn-inline" onclick="executeJump()">Vai</button>
+                </div>
             </div>
-        </div>
-        <div class="control-group">
-            <div class="control-row">
-                <label>Intervallo Slide:</label>
-                <div>
-                    <input type="number" id="timerInput" min="1" max="120" value="6" disabled>
-                    <span style="font-size: 14px;"> s</span>
-                    <button id="btn-timer" class="btn btn-inline" onclick="updateTimer()" disabled>Applica</button>
+
+            <div class="section-title">Impostazioni Hardware</div>
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Luminosità: <span id="brightVal">80</span>%</label>
+                    <input type="range" id="brightnessRange" min="0" max="100" value="80" oninput="updateBrightness(this.value)">
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Intervallo Slide:</label>
+                    <div>
+                        <input type="number" id="timerInput" min="1" max="120" value="6">
+                        <span style="font-size: 14px;"> s</span>
+                        <button id="btn-timer" class="btn btn-inline" onclick="updateTimer()">Applica</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -130,49 +177,39 @@
         const btnConnect = document.getElementById('btn-connect');
         const btnDisconnect = document.getElementById('btn-disconnect');
         const statusText = document.getElementById('status-text');
-        
-        const brightnessRange = document.getElementById('brightnessRange');
-        const timerInput = document.getElementById('timerInput');
+        const controlsWrapper = document.getElementById('controls-wrapper');
+        const loaderWrapper = document.getElementById('loader-wrapper');
         const jumpInput = document.getElementById('jumpInput');
-        
-        const navBack = document.getElementById('nav-back');
-        const navForward = document.getElementById('nav-forward');
-        const btnJump = document.getElementById('btn-jump');
-        const btnTimer = document.getElementById('btn-timer');
+        const timerInput = document.getElementById('timerInput');
 
-        function updateUI(connected) {
-            if (connected) {
+        // Stati possibili: 'disconnected', 'connecting', 'connected'
+        function setAppState(state) {
+            if (state === 'connecting') {
+                statusText.innerText = "Stato: Connessione in corso...";
+                statusText.className = "status-panel status-connecting";
+                btnConnect.style.display = "none";
+                loaderWrapper.style.display = "flex";
+                controlsWrapper.style.display = "none";
+            } else if (state === 'connected') {
                 statusText.innerText = "Stato: Connesso al Quadro";
                 statusText.className = "status-panel status-connected";
                 btnConnect.style.display = "none";
-                btnDisconnect.style.display = "block";
-                
-                brightnessRange.disabled = false;
-                timerInput.disabled = false;
-                jumpInput.disabled = false;
-                navBack.disabled = false;
-                navForward.disabled = false;
-                btnJump.disabled = false;
-                btnTimer.disabled = false;
+                loaderWrapper.style.display = "none";
+                controlsWrapper.style.display = "block";
             } else {
                 statusText.innerText = "Stato: Disconnesso";
                 statusText.className = "status-panel status-disconnected";
                 btnConnect.style.display = "block";
-                btnDisconnect.style.display = "none";
-                
-                brightnessRange.disabled = true;
-                timerInput.disabled = true;
-                jumpInput.disabled = true;
-                navBack.disabled = true;
-                navForward.disabled = true;
-                btnJump.disabled = true;
-                btnTimer.disabled = true;
+                loaderWrapper.style.display = "none";
+                controlsWrapper.style.display = "none";
             }
         }
 
         async function connectBLE() {
             try {
+                setAppState('connecting');
                 console.log("Ricerca del dispositivo ESP32...");
+                
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [{ name: 'ESP32-LCD-35' }],
                     optionalServices: [SERVICE_UUID]
@@ -188,17 +225,21 @@
                 bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
                 console.log("Connesso con successo!");
-                updateUI(true);
+                setAppState('connected');
 
                 bleDevice.addEventListener('gattserverdisconnected', () => {
                     bleCharacteristic = null;
                     bleDevice = null;
-                    updateUI(false);
+                    setAppState('disconnected');
                 });
 
             } catch (error) {
                 console.error("Errore di connessione BLE:", error);
-                alert("Connessione fallita: " + error.message);
+                // Se l'utente annulla la ricerca o fallisce la connessione, resetta l'interfaccia
+                setAppState('disconnected');
+                if (error.name !== 'NotFoundError') {
+                    alert("Connessione fallita: " + error.message);
+                }
             }
         }
 
@@ -239,7 +280,7 @@
             }
             bleCharacteristic = null;
             bleDevice = null;
-            updateUI(false);
+            setAppState('disconnected');
         }
 
         btnConnect.addEventListener('click', connectBLE);
