@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controller Quadro Laurea BLE</title>
+    <style>
+        :root {
+            --bg-color: #121214;
+            --card-bg: #1a1a1e;
+            --primary: #0070f3;
+            --primary-hover: #0051b3;
+            --success: #00c853;
+            --danger: #ff3b30;
+            --text: #ffffff;
+            --text-muted: #a0a0a5;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+        .status-panel { padding: 12px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.05); margin-bottom: 24px; font-weight: 500; text-align: center; }
+        .status-disconnected { color: var(--danger); }
+        .status-connected { color: var(--success); }
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:active { transform: scale(0.98); }
+        .btn-disconnect { background-color: transparent; border: 2px solid #333; color: var(--text-muted); }
+        .btn-disconnect:hover { border-color: var(--danger); color: var(--danger); background-color: rgba(255, 59, 48, 0.05); }
+        
+        .section-title { font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-top: 24px; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #2d2d35; padding-bottom: 4px; }
+        
+        .flex-nav { display: flex; gap: 12px; margin-bottom: 12px; }
+        .flex-nav .btn { margin-bottom: 0; }
+        
+        .control-group { background: rgba(255,255,255,0.02); padding: 14px; border-radius: 8px; border: 1px solid #2c2c35; margin-bottom: 12px; }
+        .control-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .control-row:last-child { margin-bottom: 0; }
+        label { font-size: 14px; color: #d0d0d5; }
+        input[type="range"] { flex: 1; margin-left: 15px; accent-color: var(--primary); }
+        input[type="number"] { width: 70px; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #222; color: white; text-align: center; font-size: 14px; }
+        .btn-inline { width: auto; padding: 6px 14px; font-size: 14px; margin-bottom: 0; margin-left: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Quadro Laurea</h1>
+        <div class="subtitle">Pannello Web BLE Completo</div>
+
+        <div id="status-text" class="status-panel status-disconnected">Stato: Disconnesso</div>
+
+        <button id="btn-connect" class="btn">Connetti al Quadro</button>
+        <button id="btn-disconnect" class="btn btn-disconnect" style="display: none;">Disconnetti</button>
+
+        <!-- Navigazione Manuale Sequenziale -->
+        <div class="section-title">Navigazione Manuale</div>
+        <div class="flex-nav">
+            <button class="btn btn-badge" id="nav-back" onclick="sendBleCmd('B')" disabled>◀ BACK</button>
+            <button class="btn btn-badge" id="nav-forward" onclick="sendBleCmd('F')" disabled>FORWARD ▶</button>
+        </div>
+
+        <!-- Selezione Rapida tramite Input Numerico -->
+        <div class="section-title">Salto Diretto (Jump)</div>
+        <div class="control-group">
+            <div class="control-row" style="justify-content: flex-start;">
+                <label for="jumpInput" style="margin-right: auto;">Numero Immagine (Indice):</label>
+                <input type="number" id="jumpInput" min="0" value="0" disabled>
+                <button id="btn-jump" class="btn btn-inline" onclick="executeJump()" disabled>Vai</button>
+            </div>
+        </div>
+
+        <!-- Regolazioni Hardware del Quadro -->
+        <div class="section-title">Impostazioni Hardware</div>
+        <div class="control-group">
+            <div class="control-row">
+                <label>Luminosità: <span id="brightVal">80</span>%</label>
+                <input type="range" id="brightnessRange" min="0" max="100" value="80" disabled oninput="updateBrightness(this.value)">
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="control-row">
+                <label>Intervallo Slide:</label>
+                <div>
+                    <input type="number" id="timerInput" min="1" max="120" value="6" disabled>
+                    <span style="font-size: 14px;"> s</span>
+                    <button id="btn-timer" class="btn btn-inline" onclick="updateTimer()" disabled>Applica</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SERVICE_UUID = 0x00FF;
+        const CHARACTERISTIC_UUID = 0xFF01;
+
+        let bleDevice = null;
+        let bleCharacteristic = null;
+
+        const btnConnect = document.getElementById('btn-connect');
+        const btnDisconnect = document.getElementById('btn-disconnect');
+        const statusText = document.getElementById('status-text');
+        
+        const brightnessRange = document.getElementById('brightnessRange');
+        const timerInput = document.getElementById('timerInput');
+        const jumpInput = document.getElementById('jumpInput');
+        
+        const navBack = document.getElementById('nav-back');
+        const navForward = document.getElementById('nav-forward');
+        const btnJump = document.getElementById('btn-jump');
+        const btnTimer = document.getElementById('btn-timer');
+
+        function updateUI(connected) {
+            if (connected) {
+                statusText.innerText = "Stato: Connesso al Quadro";
+                statusText.className = "status-panel status-connected";
+                btnConnect.style.display = "none";
+                btnDisconnect.style.display = "block";
+                
+                brightnessRange.disabled = false;
+                timerInput.disabled = false;
+                jumpInput.disabled = false;
+                navBack.disabled = false;
+                navForward.disabled = false;
+                btnJump.disabled = false;
+                btnTimer.disabled = false;
+            } else {
+                statusText.innerText = "Stato: Disconnesso";
+                statusText.className = "status-panel status-disconnected";
+                btnConnect.style.display = "block";
+                btnDisconnect.style.display = "none";
+                
+                brightnessRange.disabled = true;
+                timerInput.disabled = true;
+                jumpInput.disabled = true;
+                navBack.disabled = true;
+                navForward.disabled = true;
+                btnJump.disabled = true;
+                btnTimer.disabled = true;
+            }
+        }
+
+        async function connectBLE() {
+            try {
+                console.log("Ricerca del dispositivo ESP32...");
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'ESP32-LCD-35' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                console.log("Connessione al server GATT...");
+                const server = await bleDevice.gatt.connect();
+
+                console.log("Recupero del servizio...");
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                console.log("Recupero della caratteristica...");
+                bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                console.log("Connesso con successo!");
+                updateUI(true);
+
+                bleDevice.addEventListener('gattserverdisconnected', () => {
+                    bleCharacteristic = null;
+                    bleDevice = null;
+                    updateUI(false);
+                });
+
+            } catch (error) {
+                console.error("Errore di connessione BLE:", error);
+                alert("Connessione fallita: " + error.message);
+            }
+        }
+
+        async function sendBleCmd(commandString) {
+            if (!bleCharacteristic) return;
+            try {
+                const encoder = new TextEncoder();
+                const dataBuffer = encoder.encode(commandString);
+                console.log(`Invio comando BLE: ${commandString}`);
+                await bleCharacteristic.writeValue(dataBuffer);
+            } catch (error) {
+                console.error("Errore durante l'invio del comando:", error);
+            }
+        }
+
+        function executeJump() {
+            const index = jumpInput.value;
+            if (index >= 0 && index !== "") {
+                sendBleCmd("J" + index);
+            }
+        }
+
+        function updateBrightness(val) {
+            document.getElementById("brightVal").innerText = val;
+            sendBleCmd("L" + val);
+        }
+
+        function updateTimer() {
+            const seconds = timerInput.value;
+            if (seconds > 0) {
+                sendBleCmd("T" + seconds);
+            }
+        }
+
+        function disconnectBLE() {
+            if (bleDevice && bleDevice.gatt.connected) {
+                bleDevice.gatt.disconnect();
+            }
+            bleCharacteristic = null;
+            bleDevice = null;
+            updateUI(false);
+        }
+
+        btnConnect.addEventListener('click', connectBLE);
+        btnDisconnect.addEventListener('click', disconnectBLE);
+    </script>
+</body>
+</html>
