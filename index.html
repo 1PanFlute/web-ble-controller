@@ -3,288 +3,664 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controller Quadro Laurea BLE</title>
+    <title>ESP32-S3 LCD Controller</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #121214;
+            --bg-color: #0d2b45;
+            --card-bg: #203c56;
+            --accent-color: #007a80;
+            --accent-hover: #007a80;
+            --text-color: #eeeeee;
+            --text-muted: #adb5bd;
+            --danger: #ff4d4d;
+            --gold: #ff9f43;
+
+            /* --bg-color: #121214;
             --card-bg: #1a1a1e;
-            --primary: #0070f3;
-            --primary-hover: #0051b3;
-            --success: #00c853;
-            --danger: #ff3b30;
-            --text: #ffffff;
-            --text-muted: #a0a0a5;
+            --accent-color: #00adb5;
+            --accent-hover: #007a80;
+            --text-color: #eeeeee;
+            --text-muted: #adb5bd;
+            --danger: #ff4d4d;
+            --gold: #ff9f43; */
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text);
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            box-sizing: border-box;
+            padding: 20px;
+            overflow: hidden;
+            position: relative;
         }
+
         .container {
             background-color: var(--card-bg);
-            padding: 30px;
             border-radius: 16px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-            max-width: 500px;
+            padding: 30px;
             width: 100%;
-        }
-        h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }
-        .subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
-        .status-panel { padding: 12px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.05); margin-bottom: 24px; font-weight: 500; text-align: center; }
-        .status-disconnected { color: var(--danger); }
-        .status-connecting { color: var(--primary); }
-        .status-connected { color: var(--success); }
-        
-        .btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.1s, transform 0.1s;
-            width: 100%;
-            margin-bottom: 12px;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn-disconnect { background-color: transparent; border: 2px solid #333; color: var(--text-muted); }
-        
-        .btn:active { 
-            background-color: var(--primary-hover) !important;
-            transform: scale(0.95);
-        }
-        .btn-disconnect:active {
-            border-color: var(--danger) !important;
-            color: var(--danger) !important;
-            background-color: rgba(255, 59, 48, 0.15) !important;
-            transform: scale(0.95);
+            max-width: 480px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid #2a2a30;
+            position: relative;
+            z-index: 1;
         }
 
-        @media (hover: hover) {
-            .btn:hover { background-color: var(--primary-hover); }
-            .btn-disconnect:hover { border-color: var(--danger); color: var(--danger); background-color: rgba(255, 59, 48, 0.05); }
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 25px;
+            color: var(--text-color);
+            letter-spacing: 0.5px;
         }
-        
-        .section-title { font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-top: 24px; margin-bottom: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #2d2d35; padding-bottom: 4px; }
-        .flex-nav { display: flex; gap: 12px; margin-bottom: 12px; }
-        .flex-nav .btn { margin-bottom: 0; }
-        
-        .control-group { background: rgba(255,255,255,0.02); padding: 14px; border-radius: 8px; border: 1px solid #2c2c35; margin-bottom: 12px; }
-        .control-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-        .control-row:last-child { margin-bottom: 0; }
-        label { font-size: 14px; color: #d0d0d5; }
-        input[type="range"] { flex: 1; margin-left: 15px; accent-color: var(--primary); }
-        input[type="number"] { width: 70px; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #222; color: white; text-align: center; font-size: 14px; }
-        .btn-inline { width: auto; padding: 6px 14px; font-size: 14px; margin-bottom: 0; margin-left: 8px; }
 
-        #controls-wrapper { display: none; }
-
-        /* Struttura e animazione del Loader */
-        .loader-container {
-            display: none;
-            flex-direction: column;
+        .status-panel {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            padding: 20px 0;
+            margin-bottom: 25px;
+            padding: 12px 16px;
+            background-color: #222227;
+            border-radius: 8px;
+            font-size: 0.9rem;
         }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-left-color: var(--primary);
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: var(--danger);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 12px;
+            margin-right: 8px;
+            box-shadow: 0 0 8px var(--danger);
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .status-dot.connected {
+            background-color: #2ecc71;
+            box-shadow: 0 0 8px #2ecc71;
         }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--accent-color);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            text-align: center;
+        }
+
+        .btn:hover { background-color: var(--accent-hover); }
+        .btn:active { transform: scale(0.98); }
+
+        .btn-disconnect {
+            background-color: #343a40;
+            margin-top: 10px;
+        }
+        .btn-disconnect:hover { background-color: #23272b; }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn-nav {
+            background-color: #2b2b35;
+            border: 1px solid #3e3e4f;
+        }
+        .btn-nav:hover { background-color: #383845; }
+
+        .control-group {
+            margin-top: 25px;
+            background-color: #222227;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .jump-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #3e3e4f;
+            background-color: #2b2b35;
+            color: #fff;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        /* ── CONFIGURAZIONE IMMAGINE CODA MULTI-BORDO ── */
+        .pig-tail-trigger {
+            position: fixed;
+            width: 50px;  
+            height: 50px;
+            z-index: 9998;
+            cursor: grab;
+            display: none; 
+            touch-action: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            object-fit: contain;
+        }
+
+        /* ── OVERLAY TITOLI DI CODA OMNIDIREZIONALE ── */
+        .credits-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #757575 0%, #424242 40%, #111111 100%);
+            z-index: 9999;
+            color: #ffffff;
+            overflow: hidden;
+            font-family: 'Press Start 2P', monospace;
+            transform: translate(100vw, 0); 
+            transition: transform 0.3s ease-out; 
+        }
+
+        .credits-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .credits-content {
+            position: absolute;
+            top: 100%;
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+            will-change: transform;
+        }
+
+        .credits-content img {
+            max-width: 200px;
+            margin-bottom: 2rem;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .animate-credits {
+            animation: movieCredits 36s linear forwards;
+        }
+
+        .credits-content h1 {
+            font-size: 1.4rem; 
+            color: #ffffff;
+            margin-bottom: 4rem;
+            line-height: 1.6;
+        }
+
+        .credits-content .name {
+            font-size: 1rem;
+            color: #ffffff;
+            margin-bottom: 2.2rem;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 0px #000000; 
+        }
+
+        /* ── SCRITTA FINALE INDIPENDENTE ── */
+        .final-thanks {
+            position: absolute;
+            top: 100vh;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 1.3rem;
+            color: var(--gold);
+            font-style: italic;
+            text-shadow: 2px 2px 0px #000000;
+            will-change: transform;
+            z-index: 2;
+        }
+
+        .animate-thanks {
+            animation: thanksStop 4s cubic-bezier(0.1, 1, 0.2, 1) forwards;
+        }
+
+        @keyframes movieCredits {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-180%); } /* Aumentato per far scorrere via tutti i nomi */
+        }
+
+        @keyframes thanksStop {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50vh); } 
+        }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Quadro Laurea</h1>
-        <div class="subtitle">Pannello Web BLE</div>
+        <h1>ESP32 LCD Panel Control</h1>
 
-        <div id="status-text" class="status-panel status-disconnected">Stato: Disconnesso</div>
-
-        <!-- Tasto di Connessione -->
-        <button id="btn-connect" class="btn">Connetti al Quadro</button>
-
-        <!-- Loader di Caricamento (Nascosto di base) -->
-        <div id="loader-wrapper" class="loader-container">
-            <div class="spinner"></div>
-            <div style="font-size: 14px; color: var(--text-muted);">Ricerca del Quadro in corso...</div>
+        <div class="status-panel">
+            <span>Stato: <strong id="status-text">Disconnesso</strong></span>
+            <span style="display: flex; align-items: center;">
+                <span id="status-dot" class="status-dot"></span>
+            </span>
         </div>
 
-        <!-- CONTENITORE CONTROLLI -->
-        <div id="controls-wrapper">
-            <button id="btn-disconnect" class="btn btn-disconnect">Disconnetti</button>
+        <button id="btn-connect" class="btn">Connetti BLE</button>
+        <button id="btn-disconnect" class="btn btn-disconnect hidden">Disconnetti</button>
 
-            <div class="section-title">Navigazione Manuale</div>
-            <div class="flex-nav">
-                <button class="btn" id="nav-back" onclick="sendBleCmd('B')">◀ BACK</button>
-                <button class="btn" id="nav-forward" onclick="sendBleCmd('F')">FORWARD ▶</button>
+        <div id="controls" class="hidden">
+            <div class="control-grid">
+                <button id="btn-back" class="btn btn-nav">◀ Indietro</button>
+                <button id="btn-next" class="btn btn-nav">Avanti ▶</button>
             </div>
 
-            <div class="section-title">Salto Diretto (Jump)</div>
             <div class="control-group">
-                <div class="control-row" style="justify-content: flex-start;">
-                    <label for="jumpInput" style="margin-right: auto;">Numero Immagine:</label>
-                    <input type="number" id="jumpInput" min="0" value="0">
-                    <button id="btn-jump" class="btn btn-inline" onclick="executeJump()">Vai</button>
-                </div>
+                <label>Luminosità Screen: <span id="val-bright">80%</span></label>
+                <input type="range" id="slide-bright" min="0" max="100" value="80">
             </div>
 
-            <div class="section-title">Impostazioni Hardware</div>
             <div class="control-group">
-                <div class="control-row">
-                    <label>Luminosità: <span id="brightVal">80</span>%</label>
-                    <input type="range" id="brightnessRange" min="0" max="100" value="80" oninput="updateBrightness(this.value)">
-                </div>
+                <label>Intervallo Slideshow: <span id="val-timer">6s</span></label>
+                <input type="range" id="slide-timer" min="2" max="30" value="6">
             </div>
-            <div class="control-group">
-                <div class="control-row">
-                    <label>Intervallo Slide:</label>
-                    <div>
-                        <input type="number" id="timerInput" min="1" max="120" value="6">
-                        <span style="font-size: 14px;"> s</span>
-                        <button id="btn-timer" class="btn btn-inline" onclick="updateTimer()">Applica</button>
-                    </div>
-                </div>
+
+            <div class="jump-group">
+                <input type="number" id="input-index" min="0" value="0" placeholder="Id">
+                <button id="btn-jump" class="btn">Salta a Immagine</button>
             </div>
         </div>
     </div>
 
+    <img id="pig-tail" src="pig_tail.png" alt="Coda" class="pig-tail-trigger">
+
+    <div id="credits-overlay" class="credits-overlay">
+        <div class="credits-container">
+            <div id="credits-content" class="credits-content">
+                <img src="tombi_img.png" alt="Tombi">
+                
+                <h1>Partecipanti del<br>regalo</h1>
+                
+                <div class="name">Alessandro</div>
+                <div class="name">Alessia e Favi</div>
+                <div class="name">Angela e Leonardo</div>
+                <div class="name">Cassandra</div>
+                <div class="name">Chiara</div>
+                <div class="name">Vittorio e Cibi</div>
+                <div class="name">Cosimo</div>
+                <div class="name">Davide</div>
+                <div class="name">Markeljiana</div>
+                <div class="name">Emiliano e Eleonora</div>
+                <div class="name">Bonix</div>
+                <div class="name">Federico e Sara</div>
+                <div class="name">Francesca</div>
+                <div class="name">Francesco e Livia</div>
+                <div class="name">Gabriele</div>
+                <div class="name">Gianmarco</div>
+                <div class="name">Gianni</div>
+                <div class="name">Iacopo</div>
+                <div class="name">Irene</div>
+                <div class="name">Leonardo Pando</div>
+                <div class="name">Leonardo Crox</div>
+                <div class="name">Linda</div>
+                <div class="name">Lorenzo Guidi</div>
+                <div class="name">Lorenzo Palets</div>
+                <div class="name">Luca</div>
+                <div class="name">Marco</div>
+                <div class="name">Mario</div>
+                <div class="name">Michela</div>
+                <div class="name">Mirco</div>
+                <div class="name">Matteo Montanelli</div>
+                <div class="name">Matteo Rossetti</div>
+                <div class="name">Salvo</div>
+                <div class="name">Simone</div>
+                <div class="name">Valeria</div>
+                <div class="name">Vito</div>
+                <div class="name">Vittoria</div>
+                <div class="name">Yuriy</div>
+            </div>
+            
+            <p id="final-thanks" class="final-thanks">Grazie per la visione!</p>
+        </div>
+    </div>
+
     <script>
-        const SERVICE_UUID = 0x00FF;
-        const CHARACTERISTIC_UUID = 0xFF01;
+        const SERVICE_UUID  = 0x00FF; 
+        const CHAR_UUID     = 0xFF01; 
 
         let bleDevice = null;
-        let bleCharacteristic = null;
+        let screenCharacteristic = null;
 
-        const btnConnect = document.getElementById('btn-connect');
+        const btnConnect    = document.getElementById('btn-connect');
         const btnDisconnect = document.getElementById('btn-disconnect');
-        const statusText = document.getElementById('status-text');
-        const controlsWrapper = document.getElementById('controls-wrapper');
-        const loaderWrapper = document.getElementById('loader-wrapper');
-        const jumpInput = document.getElementById('jumpInput');
-        const timerInput = document.getElementById('timerInput');
+        const statusText    = document.getElementById('status-text');
+        const statusDot     = document.getElementById('status-dot');
+        const controlsDiv   = document.getElementById('controls');
 
-        // Stati possibili: 'disconnected', 'connecting', 'connected'
-        function setAppState(state) {
-            if (state === 'connecting') {
-                statusText.innerText = "Stato: Connessione in corso...";
-                statusText.className = "status-panel status-connecting";
-                btnConnect.style.display = "none";
-                loaderWrapper.style.display = "flex";
-                controlsWrapper.style.display = "none";
-            } else if (state === 'connected') {
-                statusText.innerText = "Stato: Connesso al Quadro";
-                statusText.className = "status-panel status-connected";
-                btnConnect.style.display = "none";
-                loaderWrapper.style.display = "none";
-                controlsWrapper.style.display = "block";
-            } else {
-                statusText.innerText = "Stato: Disconnesso";
-                statusText.className = "status-panel status-disconnected";
-                btnConnect.style.display = "block";
-                loaderWrapper.style.display = "none";
-                controlsWrapper.style.display = "none";
-            }
-        }
+        const btnBack       = document.getElementById('btn-back');
+        const btnNext       = document.getElementById('btn-next');
+        const slideBright   = document.getElementById('slide-bright');
+        const valBright     = document.getElementById('val-bright');
+        const slideTimer    = document.getElementById('slide-timer');
+        const valTimer      = document.getElementById('val-timer');
+        const inputIndex    = document.getElementById('input-index');
+        const btnJump       = document.getElementById('btn-jump');
 
-        async function connectBLE() {
+        const creditsOverlay = document.getElementById('credits-overlay');
+        const creditsContent = document.getElementById('credits-content');
+        const finalThanks    = document.getElementById('final-thanks');
+        const pigTail        = document.getElementById('pig-tail');
+
+        let thanksTimeout = null;
+        let closeOverlayTimeout = null;
+
+        btnConnect.addEventListener('click', async () => {
             try {
-                setAppState('connecting');
-                console.log("Ricerca del dispositivo ESP32...");
-                
+                statusText.innerText = "Ricerca in corso...";
                 bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'ESP32-LCD-35' }],
+                    filters: [{ name: "ESP32-LCD-35" }],
                     optionalServices: [SERVICE_UUID]
                 });
 
-                console.log("Connessione al server GATT...");
+                statusText.innerText = "Connessione...";
                 const server = await bleDevice.gatt.connect();
-
-                console.log("Recupero del servizio...");
                 const service = await server.getPrimaryService(SERVICE_UUID);
+                screenCharacteristic = await service.getCharacteristic(CHAR_UUID);
 
-                console.log("Recupero della caratteristica...");
-                bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                statusText.innerText = "Connesso";
+                statusDot.classList.add('connected');
+                btnConnect.classList.add('hidden');
+                btnDisconnect.classList.remove('hidden');
+                controlsDiv.classList.remove('hidden');
 
-                console.log("Connesso con successo!");
-                setAppState('connected');
-
-                bleDevice.addEventListener('gattserverdisconnected', () => {
-                    bleCharacteristic = null;
-                    bleDevice = null;
-                    setAppState('disconnected');
-                });
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
             } catch (error) {
-                console.error("Errore di connessione BLE:", error);
-                // Se l'utente annulla la ricerca o fallisce la connessione, resetta l'interfaccia
-                setAppState('disconnected');
-                if (error.name !== 'NotFoundError') {
-                    alert("Connessione fallita: " + error.message);
-                }
+                console.error("Connessione fallita:", error);
+                resetUI();
             }
-        }
+        });
 
-        async function sendBleCmd(commandString) {
-            if (!bleCharacteristic) return;
-            try {
-                const encoder = new TextEncoder();
-                const dataBuffer = encoder.encode(commandString);
-                console.log(`Invio comando BLE: ${commandString}`);
-                await bleCharacteristic.writeValue(dataBuffer);
-            } catch (error) {
-                console.error("Errore durante l'invio del comando:", error);
-            }
-        }
-
-        function executeJump() {
-            const index = jumpInput.value;
-            if (index >= 0 && index !== "") {
-                sendBleCmd("J" + index);
-            }
-        }
-
-        function updateBrightness(val) {
-            document.getElementById("brightVal").innerText = val;
-            sendBleCmd("L" + val);
-        }
-
-        function updateTimer() {
-            const seconds = timerInput.value;
-            if (seconds > 0) {
-                sendBleCmd("T" + seconds);
-            }
-        }
-
-        function disconnectBLE() {
+        btnDisconnect.addEventListener('click', () => {
             if (bleDevice && bleDevice.gatt.connected) {
                 bleDevice.gatt.disconnect();
             }
-            bleCharacteristic = null;
-            bleDevice = null;
-            setAppState('disconnected');
+        });
+
+        function onDisconnected() {
+            alert("Dispositivo BLE scollegato.");
+            resetUI();
         }
 
-        btnConnect.addEventListener('click', connectBLE);
-        btnDisconnect.addEventListener('click', disconnectBLE);
+        function resetUI() {
+            statusText.innerText = "Disconnesso";
+            statusDot.classList.remove('connected');
+            btnConnect.classList.remove('hidden');
+            btnDisconnect.classList.add('hidden');
+            controlsDiv.classList.add('hidden');
+            bleDevice = null;
+            screenCharacteristic = null;
+        }
+
+        async function sendCommand(commandString) {
+            if (!screenCharacteristic) return;
+            try {
+                const encoder = new TextEncoder();
+                await screenCharacteristic.writeValue(encoder.encode(commandString));
+            } catch (error) {
+                console.error(`Errore invio comando [${commandString}]:`, error);
+            }
+        }
+
+        btnBack.addEventListener('click', () => sendCommand('B'));
+        btnNext.addEventListener('click', () => sendCommand('F'));
+
+        slideBright.addEventListener('input', (e) => {
+            valBright.innerText = `${e.target.value}%`;
+        });
+        slideBright.addEventListener('change', (e) => {
+            sendCommand(`L${e.target.value}`);
+        });
+
+        slideTimer.addEventListener('input', (e) => {
+            valTimer.innerText = `${e.target.value}s`;
+        });
+        slideTimer.addEventListener('change', (e) => {
+            sendCommand(`T${e.target.value}`);
+        });
+
+        btnJump.addEventListener('click', () => {
+            const index = parseInt(inputIndex.value, 10);
+            if (!isNaN(index) && index >= 0) {
+                sendCommand(`J${index}`);
+            }
+        });
+
+        let startX = 0, startY = 0;
+        let isDragging = false;
+        let currentBorder = 'right'; 
+        let baseRotation = 0; 
+
+        function startPigTailLoop() {
+            setInterval(() => {
+                if (isDragging || creditsOverlay.style.transform === "translate(0px, 0px)") return;
+
+                const borders = ['right', 'left', 'top', 'bottom'];
+                currentBorder = borders[Math.floor(Math.random() * borders.length)];
+                
+                pigTail.style.transition = 'none';
+                pigTail.style.right = 'auto'; pigTail.style.left = 'auto';
+                pigTail.style.top = 'auto'; pigTail.style.bottom = 'auto';
+
+                const randomOffset = Math.floor(Math.random() * 60) + 20;
+
+                if (currentBorder === 'right') {
+                    pigTail.style.top = `${randomOffset}%`;
+                    pigTail.style.right = '-55px';
+                    baseRotation = 0;
+                } else if (currentBorder === 'left') {
+                    pigTail.style.top = `${randomOffset}%`;
+                    pigTail.style.left = '-55px';
+                    baseRotation = 180;
+                } else if (currentBorder === 'top') {
+                    pigTail.style.left = `${randomOffset}%`;
+                    pigTail.style.top = '-55px';
+                    baseRotation = 270;
+                } else if (currentBorder === 'bottom') {
+                    pigTail.style.left = `${randomOffset}%`;
+                    pigTail.style.bottom = '-55px';
+                    baseRotation = 90;
+                }
+
+                pigTail.style.transform = `rotate(${baseRotation}deg)`;
+                pigTail.style.display = 'block';
+
+                void pigTail.offsetWidth;
+
+                pigTail.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                
+                if (currentBorder === 'right') pigTail.style.right = '15px';
+                if (currentBorder === 'left') pigTail.style.left = '15px';
+                if (currentBorder === 'top') pigTail.style.top = '15px';
+                if (currentBorder === 'bottom') pigTail.style.bottom = '15px';
+
+                setTimeout(() => {
+                    if (!isDragging) hidePigTail();
+                }, 3000);
+
+            }, 8000);
+        }
+
+        function hidePigTail() {
+            pigTail.style.transition = 'all 0.3s ease-in';
+            if (currentBorder === 'right') pigTail.style.right = '-55px';
+            if (currentBorder === 'left') pigTail.style.left = '-55px';
+            if (currentBorder === 'top') pigTail.style.top = '-55px';
+            if (currentBorder === 'bottom') pigTail.style.bottom = '-55px';
+            pigTail.style.transform = `rotate(${baseRotation}deg)`;
+        }
+
+        startPigTailLoop();
+
+        async function triggerEasterEgg() {
+            isDragging = false;
+            pigTail.style.display = 'none';
+
+            clearTimeout(thanksTimeout);
+            clearTimeout(closeOverlayTimeout);
+
+            creditsOverlay.style.transition = 'transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1)';
+            creditsOverlay.style.transform = 'translate(0px, 0px)';
+
+            if (screenCharacteristic) await sendCommand('E');
+
+            creditsContent.classList.remove('animate-credits');
+            finalThanks.classList.remove('animate-thanks');
+            void creditsContent.offsetWidth; 
+            creditsContent.classList.add('animate-credits');
+
+            thanksTimeout = setTimeout(() => {
+                finalThanks.classList.add('animate-thanks');
+            }, 27500);
+
+            closeOverlayTimeout = setTimeout(() => {
+                creditsOverlay.style.transition = 'transform 0.5s ease-in';
+                creditsOverlay.style.transform = 'translate(100vw, 0)';
+                creditsContent.classList.remove('animate-credits');
+                finalThanks.classList.remove('animate-thanks');
+            }, 30700);
+        }
+
+        function getCoords(e) {
+            if (e.touches) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function dragStart(e) {
+            isDragging = true;
+            const coords = getCoords(e);
+            startX = coords.x;
+            startY = coords.y;
+            
+            creditsOverlay.style.transition = 'none';
+            pigTail.style.transition = 'none';
+
+            if (currentBorder === 'right') creditsOverlay.style.transform = 'translate(100vw, 0)';
+            if (currentBorder === 'left') creditsOverlay.style.transform = 'translate(-100vw, 0)';
+            if (currentBorder === 'top') creditsOverlay.style.transform = 'translate(0, -100vh)';
+            if (currentBorder === 'bottom') creditsOverlay.style.transform = 'translate(0, 100vh)';
+        }
+
+        function dragMove(e) {
+            if (!isDragging) return;
+            const coords = getCoords(e);
+            
+            let deltaX = startX - coords.x; 
+            let deltaY = startY - coords.y; 
+
+            let pull = 0;
+            let transformOverlay = '';
+            let transformTail = '';
+
+            if (currentBorder === 'right' && deltaX > 0) {
+                pull = deltaX;
+                transformOverlay = `translate(${window.innerWidth - pull}px, 0)`;
+                transformTail = `translateX(-${pull}px) rotate(${baseRotation}deg)`;
+            } 
+            else if (currentBorder === 'left' && deltaX < 0) {
+                pull = Math.abs(deltaX);
+                transformOverlay = `translate(${-window.innerWidth + pull}px, 0)`;
+                transformTail = `translateX(${pull}px) rotate(${baseRotation}deg)`;
+            } 
+            else if (currentBorder === 'top' && deltaY < 0) {
+                pull = Math.abs(deltaY);
+                transformOverlay = `translate(0, ${-window.innerHeight + pull}px)`;
+                transformTail = `translateY(${pull}px) rotate(${baseRotation}deg)`;
+            } 
+            else if (currentBorder === 'bottom' && deltaY > 0) {
+                pull = deltaY;
+                transformOverlay = `translate(0, ${window.innerHeight - pull}px)`;
+                transformTail = `translateY(-${pull}px) rotate(${baseRotation}deg)`;
+            }
+
+            if (pull > 0) {
+                creditsOverlay.style.transform = transformOverlay;
+                pigTail.style.transform = transformTail;
+                pigTail.dataset.lastPull = pull;
+            }
+        }
+
+        function dragEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+
+            let totalDragged = parseFloat(pigTail.dataset.lastPull) || 0;
+            pigTail.dataset.lastPull = 0;
+
+            pigTail.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+
+            if (totalDragged > 80 || totalDragged < 5) {
+                triggerEasterEgg();
+            } else {
+                creditsOverlay.style.transition = 'transform 0.3s ease-out';
+                if (currentBorder === 'right') creditsOverlay.style.transform = 'translate(100vw, 0)';
+                if (currentBorder === 'left') creditsOverlay.style.transform = 'translate(-100vw, 0)';
+                if (currentBorder === 'top') creditsOverlay.style.transform = 'translate(0, -100vh)';
+                if (currentBorder === 'bottom') creditsOverlay.style.transform = 'translate(0, 100vh)';
+                
+                hidePigTail();
+            }
+        }
+
+        pigTail.addEventListener('touchstart', dragStart, { passive: true });
+        window.addEventListener('touchmove', dragMove, { passive: true });
+        window.addEventListener('touchend', dragEnd);
+
+        pigTail.addEventListener('mousedown', dragStart);
+        window.addEventListener('mousemove', dragMove);
+        window.addEventListener('mouseup', dragEnd);
+        pigTail.addEventListener('dragstart', (e) => e.preventDefault());
     </script>
 </body>
 </html>
